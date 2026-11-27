@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hs_postgres
+    environment:
+      POSTGRES_USER: hs_user
+      POSTGRES_PASSWORD: hs_pass
+      POSTGRES_DB: hs_db
+    ports:
+      - "55432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./sql/init_postgres.sql:/docker-entrypoint-initdb.d/init_postgres.sql
+      - ./data:/data
+    networks:
+      - hs_net
+
+  spark:
+    build: ./spark
+    container_name: hs_spark
+    environment:
+      - PYSPARK_PYTHON=python3
+    mem_limit: 2g
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - ./spark:/opt/spark/work
+      - ./data:/data
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - postgres
+      - clickhouse
+    networks:
+      - hs_net
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    container_name: hs_clickhouse
+    mem_limit: 1g
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - ch_data:/var/lib/clickhouse
+      - ./sql/init_clickhouse.sql:/docker-entrypoint-initdb.d/init_clickhouse.sql
+    networks:
+      - hs_net
+
+volumes:
+  pg_data:
+  ch_data:
+
+networks:
+  hs_net:
+    driver: bridge
